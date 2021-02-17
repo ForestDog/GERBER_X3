@@ -4,9 +4,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -82,13 +82,13 @@ void VoronoiForm::createFile()
 
     Paths wPaths;
     Paths wRawPaths;
-    AbstractFile const* file = nullptr;
+    FileInterface const* file = nullptr;
     bool skip { true };
 
     for (auto* item : App::scene()->selectedItems()) {
         auto* gi = dynamic_cast<GraphicsItem*>(item);
         switch (static_cast<GiType>(item->type())) {
-        case GiType::Gerber:
+        case GiType::DataSolid:
             if (!file) {
                 file = gi->file();
                 boardSide = gi->file()->side();
@@ -101,7 +101,7 @@ void VoronoiForm::createFile()
             }
             wPaths.append(static_cast<GraphicsItem*>(item)->paths());
             break;
-        case GiType::AperturePath:
+        case GiType::DataPath:
             //RawItem* gi = static_cast<RawItem*>(item);
             if (!file) {
                 file = gi->file();
@@ -117,9 +117,9 @@ void VoronoiForm::createFile()
             break;
             //        case DrillItemType:
             //            //            if (static_cast<DrillItem*>(item)->isSlot())
-            //            //                wrPaths.append(static_cast<GraphicsItem*>(item)->paths());
+            //            //                wrPaths.push_back(static_cast<GraphicsItem*>(item)->paths());
             //            //            else
-            //            wPaths.append(static_cast<GraphicsItem*>(item)->paths());
+            //            wPaths.push_back(static_cast<GraphicsItem*>(item)->paths());
             //            break;
         default:
             break;
@@ -127,7 +127,7 @@ void VoronoiForm::createFile()
         addUsedGi(gi);
     }
 
-    if (wPaths.isEmpty() && wRawPaths.isEmpty()) {
+    if (wPaths.empty() && wRawPaths.empty()) {
         QMessageBox::warning(this, tr("Warning"), tr("No selected items for working..."));
         return;
     }
@@ -135,7 +135,7 @@ void VoronoiForm::createFile()
     GCode::GCodeParams gpc;
     gpc.setConvent(true);
     gpc.setSide(GCode::Outer);
-    gpc.tools.append(tool);
+    gpc.tools.push_back(tool);
     gpc.params[GCode::GCodeParams::Depth] = ui->dsbxDepth->value();
     gpc.params[GCode::GCodeParams::Tolerance] = ui->dsbxPrecision->value();
     gpc.params[GCode::GCodeParams::Width] = ui->dsbxWidth->value() + 0.001;

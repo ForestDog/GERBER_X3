@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -12,29 +12,40 @@
 *                                                                              *
 *******************************************************************************/
 #pragma once
+#include "mvector.h"
 #include "settings.h"
 #include "ui_settingsdialog.h"
 
-class SettingsDialog : public QDialog, private Ui::SettingsDialog, private GlobalSettings {
+class SettingsTabInterface;
+
+class SettingsDialog : public QDialog, private Ui::SettingsDialog {
     Q_OBJECT
 
     int langIndex;
+    MySettings settings;
+    mvector<SettingsTabInterface*> tabs;
 
 public:
     explicit SettingsDialog(QWidget* parent = nullptr, int tab = -1);
-    ~SettingsDialog() override = default;
+    ~SettingsDialog() override;
     void readSettings();
     void writeSettings();
+    void readSettingsDialog();
+    void writeSettingsDialog();
     /////////////////////
     static void translator(QApplication* app, const QString& path);
     enum {
         Ui,
-        Gerber,
+        Utils,
         GCode,
-        Utils
+        Gerber,
     };
 
 public slots:
     void reject() override;
     void accept() override;
+
+    // QWidget interface
+protected:
+    void showEvent(QShowEvent* event) override;
 };

@@ -4,9 +4,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -32,7 +32,7 @@ AboutForm::AboutForm(QWidget* parent)
 #else
     QString str(QString(/*BUILD_DATE*/__DATE__ " " __TIME__).append("<br/>MSC_VER: ") + QString::number(_MSC_VER));
 #endif
-    str.append("<br/>Application Version: " + qApp->applicationVersion());
+    str.push_back("<br/>Application Version: " + qApp->applicationVersion());
     ui->lblAbout->setText(ui->lblAbout->text().arg(/*qApp->applicationVersion()*/ str));
     connect(ui->cmdOk_2, &QPushButton::clicked, this, &AboutForm::accept);
     connect(ui->lblAbout, &QLabel::linkActivated, [](const QString& link) { QDesktopServices::openUrl(link); });

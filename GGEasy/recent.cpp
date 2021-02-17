@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -12,7 +12,10 @@
 *                                                                              *
 *******************************************************************************/
 #include "recent.h"
+
 #include "mainwindow.h"
+
+#include <QMenu>
 #include <QSettings>
 
 Recent::Recent(MainWindow* mainWindow, QString&& recentFilesKey)
@@ -50,7 +53,7 @@ QStringList Recent::readRecentFiles(QSettings& settings)
     const int count = settings.beginReadArray(recentFilesKey);
     for (int i = 0; i < count; ++i) {
         settings.setArrayIndex(i);
-        result.append(settings.value(fileKey()).toString());
+        result.push_back(settings.value(fileKey()).toString());
     }
     settings.endArray();
     return result;

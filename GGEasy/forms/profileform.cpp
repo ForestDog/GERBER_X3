@@ -4,9 +4,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -16,7 +16,8 @@
 #include "profileform.h"
 #include "ui_profileform.h"
 
-#include "gi/bridgeitem.h"
+#include "bridgeitem.h"
+#include "project.h"
 #include "scene.h"
 #include "settings.h"
 #include <QMessageBox>
@@ -54,10 +55,9 @@ ProfileForm::ProfileForm(QWidget* parent)
     settings.getValue(ui->rbInside);
     settings.getValue(ui->rbOn);
     settings.getValue(ui->rbOutside);
-    settings.getValue(ui->cbxStrip);
+    settings.getValue(ui->cbxTrimming);
+    settings.getValue(varName(m_trimming), 0);
     settings.endGroup();
-
-    // ui->gridLayout->addWidget(ui->labelPixmap, 0, 1, 2, 1, Qt::AlignHCenter);
 
     rb_clicked();
 
@@ -74,12 +74,18 @@ ProfileForm::ProfileForm(QWidget* parent)
 
     connect(ui->pbClose, &QPushButton::clicked, dynamic_cast<QWidget*>(parent), &QWidget::close);
     connect(ui->pbCreate, &QPushButton::clicked, this, &ProfileForm::createFile);
+    connect(ui->cbxTrimming, &QCheckBox::toggled, [this](bool checked) {
+        if (side == GCode::On)
+            checked ? m_trimming |= Trimming::Line
+                    : m_trimming &= ~Trimming::Line;
+        else
+            checked ? m_trimming |= Trimming::Corner
+                    : m_trimming &= ~Trimming::Corner;
+    });
 }
 
 ProfileForm::~ProfileForm()
 {
-
-
     MySettings settings;
     settings.beginGroup("ProfileForm");
     settings.setValue(ui->dsbxBridgeLenght);
@@ -88,7 +94,8 @@ ProfileForm::~ProfileForm()
     settings.setValue(ui->rbInside);
     settings.setValue(ui->rbOn);
     settings.setValue(ui->rbOutside);
-    settings.setValue(ui->cbxStrip);
+    settings.setValue(ui->cbxTrimming);
+    settings.setValue(varName(m_trimming));
     settings.endGroup();
 
     for (QGraphicsItem* giItem : App::scene()->items()) {
@@ -109,14 +116,14 @@ void ProfileForm::createFile()
 
     Paths wPaths;
     Paths wRawPaths;
-    AbstractFile const* file = nullptr;
+    FileInterface const* file = nullptr;
     bool skip { true };
 
     for (auto* sItem : App::scene()->selectedItems()) {
         GraphicsItem* gi = dynamic_cast<GraphicsItem*>(sItem);
         switch (static_cast<GiType>(sItem->type())) {
-        case GiType::Gerber:
-        case GiType::AperturePath:
+        case GiType::DataSolid:
+        case GiType::DataPath:
             if (!file) {
                 file = gi->file();
                 boardSide = file->side();
@@ -126,16 +133,16 @@ void ProfileForm::createFile()
                         return;
                 }
             }
-            if (static_cast<GiType>(sItem->type()) == GiType::Gerber)
+            if (static_cast<GiType>(sItem->type()) == GiType::DataSolid)
                 wPaths.append(gi->paths());
             else
                 wRawPaths.append(gi->paths());
             break;
-        case GiType::ShapeC:
-        case GiType::ShapeR:
-        case GiType::ShapeL:
-        case GiType::ShapeA:
-        case GiType::ShapeT:
+        case GiType::ShCircle:
+        case GiType::ShRectangle:
+        case GiType::ShPolyLine:
+        case GiType::ShCirArc:
+        case GiType::ShText:
             wRawPaths.append(gi->paths());
             break;
         case GiType::Drill:
@@ -147,7 +154,7 @@ void ProfileForm::createFile()
         addUsedGi(gi);
     }
 
-    if (wRawPaths.isEmpty() && wPaths.isEmpty()) {
+    if (wRawPaths.empty() && wPaths.empty()) {
         QMessageBox::warning(this, tr("Warning"), tr("No selected items for working..."));
         return;
     }
@@ -155,28 +162,29 @@ void ProfileForm::createFile()
     GCode::GCodeParams gcp;
     gcp.setConvent(ui->rbConventional->isChecked());
     gcp.setSide(side);
-    gcp.tools.append(tool);
+    gcp.tools.push_back(tool);
     gcp.params[GCode::GCodeParams::Depth] = ui->dsbxDepth->value();
-    if (ui->cbxStrip->isEnabled())
-        gcp.params[GCode::GCodeParams::Strip] = ui->cbxStrip->isChecked();
+    (side == GCode::On) ? gcp.params[GCode::GCodeParams::Trimming] = ui->cbxTrimming->isChecked()
+                        : gcp.params[GCode::GCodeParams::CornerTrimming] = ui->cbxTrimming->isChecked();
     gcp.params[GCode::GCodeParams::GrItems].setValue(m_usedItems);
 
     {
-        QVector<QPointF> brv;
+        QPolygonF brv;
         for (QGraphicsItem* item : App::scene()->items()) {
             if (static_cast<GiType>(item->type()) == GiType::Bridge)
-                brv.append(item->pos());
+                brv.push_back(item->pos());
         }
         if (!brv.isEmpty()) {
-            gcp.params[GCode::GCodeParams::Bridges].setValue(brv);
-            gcp.params[GCode::GCodeParams::BridgeLen].setValue(ui->dsbxBridgeLenght->value());
+            //gcp.params[GCode::GCodeParams::Bridges].fromValue(brv);
+            gcp.params[GCode::GCodeParams::BridgeLen] = ui->dsbxBridgeLenght->value();
         }
     }
 
     m_tpc->setGcp(gcp);
     m_tpc->addPaths(wPaths);
     m_tpc->addRawPaths(wRawPaths);
-    createToolpath();
+    fileCount = 1;
+    emit createToolpath();
 }
 
 void ProfileForm::updateName()
@@ -228,13 +236,16 @@ void ProfileForm::rb_clicked()
 {
     if (ui->rbOn->isChecked()) {
         side = GCode::On;
-        ui->cbxStrip->setEnabled(true);
+        ui->cbxTrimming->setText(tr("Trimming"));
+        ui->cbxTrimming->setChecked(m_trimming & Trimming::Line);
     } else if (ui->rbOutside->isChecked()) {
         side = GCode::Outer;
-        ui->cbxStrip->setEnabled(false);
+        ui->cbxTrimming->setText(tr("Corner Trimming"));
+        ui->cbxTrimming->setChecked(m_trimming & Trimming::Corner);
     } else if (ui->rbInside->isChecked()) {
         side = GCode::Inner;
-        ui->cbxStrip->setEnabled(false);
+        ui->cbxTrimming->setText(tr("Corner Trimming"));
+        ui->cbxTrimming->setChecked(m_trimming & Trimming::Corner);
     }
 
     if (ui->rbClimb->isChecked())
@@ -259,7 +270,7 @@ void ProfileForm::editFile(GCode::File* file)
     { // GUI
         side = gcp.side();
         direction = static_cast<GCode::Direction>(gcp.convent());
-        ui->toolHolder->setTool(gcp.tools.first());
+        ui->toolHolder->setTool(gcp.tools.front());
         ui->dsbxDepth->setValue(gcp.params[GCode::GCodeParams::Depth].toDouble());
 
         switch (side) {
@@ -288,25 +299,25 @@ void ProfileForm::editFile(GCode::File* file)
         m_usedItems.clear();
         auto items { gcp.params[GCode::GCodeParams::GrItems].value<UsedItems>() };
 
-        auto i = items.constBegin();
-        while (i != items.constEnd()) {
+        auto i = items.cbegin();
+        while (i != items.cend()) {
 
-            auto [_fileId, _] = i.key();
-            Q_UNUSED(_)
-            App::project()->aFile(_fileId)->itemGroup()->setSelected(i.value());
-            ++i;
+            //            auto [_fileId, _] = i.key();
+            //            Q_UNUSED(_)
+            //            App::project()->file(_fileId)->itemGroup()->setSelected(i.value());
+            //            ++i;
         }
     }
 
     { // Bridges
         if (gcp.params.contains(GCode::GCodeParams::Bridges)) {
             ui->dsbxBridgeLenght->setValue(gcp.params[GCode::GCodeParams::BridgeLen].toDouble());
-            for (auto& pos : gcp.params[GCode::GCodeParams::Bridges].value<QVector<QPointF>>()) {
-                brItem = new BridgeItem(m_lenght, m_size, side, brItem);
-                App::scene()->addItem(brItem);
-                brItem->setPos(pos);
-                brItem->m_lastPos = pos;
-            }
+            //            for (auto& pos : gcp.params[GCode::GCodeParams::Bridges].value<QPolygonF>()) {
+            //                brItem = new BridgeItem(m_lenght, m_size, side, brItem);
+            //                App::scene()->addItem(brItem);
+            //                brItem->setPos(pos);
+            //                brItem->m_lastPos = pos;
+            //            }
             updateBridge();
             brItem = new BridgeItem(m_lenght, m_size, side, brItem);
             //        delete item;

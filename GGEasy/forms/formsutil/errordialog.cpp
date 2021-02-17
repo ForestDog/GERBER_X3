@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -12,18 +12,23 @@
 *                                                                              *
 *******************************************************************************/
 #include "errordialog.h"
-#include "ui_errordialog.h"
 
-#include "gi/erroritem.h"
+#include "erroritem.h"
 #include "graphicsview.h"
 #include "mainwindow.h"
 #include "scene.h"
+
 #include <QAbstractTableModel>
 #include <QHeaderView>
 #include <QIcon>
 #include <QPainter>
 #include <QPushButton>
 #include <QTableView>
+#include <QtWidgets/QAbstractButton>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QDialogButtonBox>
+#include <QtWidgets/QVBoxLayout>
 
 Q_DECLARE_METATYPE(ErrorItem*)
 
@@ -60,22 +65,19 @@ QIcon errorIcon(const QPainterPath& path)
 }
 
 class ErrorModel : public QAbstractTableModel {
-    QVector<ErrorItem*> items;
+    mvector<ErrorItem*> items;
 
 public:
-    ErrorModel(QVector<ErrorItem*> items, QObject* parent = nullptr)
+    ErrorModel(mvector<ErrorItem*> items, QObject* parent = nullptr)
         : QAbstractTableModel(parent)
         , items(items)
     {
     }
-    virtual ~ErrorModel()
-    {
-        qDeleteAll(items);
-    }
+    virtual ~ErrorModel() { qDeleteAll(items); }
 
     // QAbstractItemModel interface
 public:
-    int rowCount(const QModelIndex&) const override { return items.size(); }
+    int rowCount(const QModelIndex&) const override { return static_cast<int>(items.size()); }
     int columnCount(const QModelIndex&) const override { return 2; }
     QVariant data(const QModelIndex& index, int role) const override
     {
@@ -162,12 +164,38 @@ protected:
     }
 };
 
-ErrorDialog::ErrorDialog(const QVector<ErrorItem*>& items, QWidget* parent)
-    : QDialog(parent, Qt::WindowSystemMenuHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint)
-    , ui(new Ui::ErrorDialog)
+void ErrorDialog::setupUi(QDialog* ErrorDialog)
 {
-    ui->setupUi(this);
-    ui->verticalLayout->insertWidget(0, table = new TableView(this));
+    if (ErrorDialog->objectName().isEmpty())
+        ErrorDialog->setObjectName(QString::fromUtf8("ErrorDialog"));
+    ErrorDialog->resize(471, 605);
+    verticalLayout = new QVBoxLayout(ErrorDialog);
+    verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
+    verticalLayout->setContentsMargins(6, 6, 6, 6);
+    buttonBox = new QDialogButtonBox(ErrorDialog);
+    buttonBox->setObjectName(QString::fromUtf8("buttonBox"));
+    buttonBox->setOrientation(Qt::Horizontal);
+    buttonBox->setStandardButtons(QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
+
+    verticalLayout->addWidget(buttonBox);
+
+    retranslateUi(ErrorDialog);
+    QObject::connect(buttonBox, &QDialogButtonBox::accepted, ErrorDialog, &QDialog::accept);
+    QObject::connect(buttonBox, &QDialogButtonBox::rejected, ErrorDialog, &QDialog::reject);
+
+    QMetaObject::connectSlotsByName(ErrorDialog);
+}
+
+void ErrorDialog::retranslateUi(QDialog* ErrorDialog)
+{
+    ErrorDialog->setWindowTitle(QCoreApplication::translate("ErrorDialog", "Uncut places:", nullptr));
+}
+
+ErrorDialog::ErrorDialog(const mvector<ErrorItem*>& items, QWidget* parent)
+    : QDialog(parent, Qt::WindowSystemMenuHint | Qt::WindowTitleHint | Qt::WindowCloseButtonHint)
+{
+    setupUi(this);
+    verticalLayout->insertWidget(0, table = new TableView(this));
     table->setModel(new ErrorModel(items, table));
     table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
 
@@ -176,18 +204,15 @@ ErrorDialog::ErrorDialog(const QVector<ErrorItem*>& items, QWidget* parent)
         item->setZValue(std::numeric_limits<double>::max());
     }
 
-    ui->buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Continue"));
-    ui->buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Break"));
+    buttonBox->button(QDialogButtonBox::Ok)->setText(tr("Continue"));
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(tr("Break"));
     lastWidget = App::mainWindow()->dockWidget()->widget();
     //    App::mainWindow()->dockWidget()->push(this);
-    setGeometry({ App::mainWindow()->dockWidget()->mapToGlobal({}), App::mainWindow()->dockWidget()->size() });
+    setGeometry({ App::mainWindow()->dockWidget()->mapToGlobal(QPoint()), App::mainWindow()->dockWidget()->size() });
 }
 
 ErrorDialog::~ErrorDialog()
 {
-
-
     //    App::mainWindow()->dockWidget()->pop();
     delete table->model();
-    delete ui;
 }

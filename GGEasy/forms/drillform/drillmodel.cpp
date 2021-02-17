@@ -4,9 +4,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -15,7 +15,7 @@
 *******************************************************************************/
 #include "drillmodel.h"
 #include "drillform.h"
-#include "tooldatabase/tool.h"
+#include "tool.h"
 
 #include <QBitmap>
 #include <QDebug>
@@ -28,18 +28,23 @@ DrillModel::DrillModel(int type, int rowCount, QObject* parent)
     m_data.reserve(rowCount);
 }
 
-Row& DrillModel::appendRow(const QString& name, const QIcon& icon, int id)
+DrillModel::DrillModel(QObject* parent)
+    : QAbstractTableModel(parent)
 {
-    m_data.append(Row(name, icon, id));
-    return m_data.last();
 }
+
+//Row& DrillModel::appendRow(const QString& name, const QIcon& icon, int id)
+//{
+//    m_data.emplace_back(name, icon, id);
+//    return m_data.back();
+//}
 
 void DrillModel::setToolId(int row, int id)
 {
     if (m_data[row].toolId != id)
         m_data[row].useForCalc = id > -1;
     m_data[row].toolId = id;
-    emit set(row, id != -1);
+    emit set(row, id > -1);
     emit dataChanged(createIndex(row, 0), createIndex(row, 1));
 }
 
@@ -70,7 +75,7 @@ void DrillModel::setCreate(bool create)
     emit dataChanged(createIndex(0, 0), createIndex(rowCount() - 1, 1));
 }
 
-int DrillModel::rowCount(const QModelIndex& /*parent*/) const { return m_data.size(); }
+int DrillModel::rowCount(const QModelIndex& /*parent*/) const { return static_cast<int>(m_data.size()); }
 
 int DrillModel::columnCount(const QModelIndex& /*parent*/) const { return ColumnCount; }
 
@@ -127,9 +132,9 @@ QVariant DrillModel::data(const QModelIndex& index, int role) const
         else
             switch (role) {
             case Qt::DisplayRole:
-                return ToolHolder::tool(m_data[row].toolId).name();
+                return App::toolHolder().tool(m_data[row].toolId).name();
             case Qt::DecorationRole:
-                return ToolHolder::tool(m_data[row].toolId).icon();
+                return App::toolHolder().tool(m_data[row].toolId).icon();
             case Qt::UserRole:
                 return m_data[row].toolId;
             default:
@@ -150,16 +155,15 @@ QVariant DrillModel::headerData(int section, Qt::Orientation orientation, int ro
             case Tool:
                 return tr("Tool");
             }
-        } else {
-            return QString(m_type == tAperture ? "D%1" : "T%1").arg(m_data[section].apertureId);
         }
+        return QString(m_type == tAperture ? "D%1" : "T%1").arg(m_data[section].apertureId);
     case Qt::SizeHintRole:
         if (orientation == Qt::Vertical)
             return QFontMetrics(QFont()).boundingRect(QString("T999")).size() + QSize(Header::DelegateSize + 10, 1);
         return QVariant();
     case Qt::TextAlignmentRole:
         if (orientation == Qt::Vertical)
-            return Qt::AlignRight + Qt::AlignVCenter;
+            return static_cast<int>(Qt::AlignRight) | static_cast<int>(Qt::AlignVCenter);
         return Qt::AlignCenter;
     default:
         return QVariant();

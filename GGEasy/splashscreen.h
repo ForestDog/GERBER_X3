@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -12,16 +12,19 @@
 *                                                                              *
 *******************************************************************************/
 #pragma once
-#include <QSplashScreen>
 #include "app.h"
+#include <QSplashScreen>
 
 class SplashScreen : public QSplashScreen {
 public:
     SplashScreen(const QPixmap& pixmap, Qt::WindowFlags f = Qt::WindowFlags())
         : QSplashScreen(pixmap, f)
     {
+        App::setSplashScreen(this);
         setObjectName("SplashScreen");
-        App::m_splashScreen = this;
     }
-    virtual ~SplashScreen() { App::m_splashScreen = nullptr; }
+    virtual ~SplashScreen()
+    {
+        App::setSplashScreen(nullptr);
+    }
 };

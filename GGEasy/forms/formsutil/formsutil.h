@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -12,18 +12,26 @@
 *                                                                              *
 *******************************************************************************/
 #pragma once
-#include "gcode.h"
+
+#include "gcode/gcode.h"
+
 #include <QThread>
 #include <QWidget>
 
 namespace GCode {
 class File;
+class Creator;
 }
 
 class GraphicsItem;
 class QProgressDialog;
 
-class FormsUtil : public QWidget {
+struct FormsUtilI {
+    virtual void createFile() = 0;
+    virtual void updateName() = 0;
+};
+
+class FormsUtil : public QWidget, protected FormsUtilI {
     Q_OBJECT
     friend class MainWindow;
 
@@ -36,25 +44,19 @@ signals:
     void createToolpath();
 
 protected:
-    virtual void createFile() = 0;
-    virtual void updateName() = 0;
-
     void fileHandler(GCode::File* file);
 
     // QObject interface
     virtual void timerEvent(QTimerEvent* event) override;
 
     GCode::Creator* m_tpc = nullptr;
-
     GCode::Direction direction = GCode::Climb;
     GCode::SideOfMilling side = GCode::Outer;
-
+    UsedItems m_usedItems;
+    Side boardSide = Top;
     void addUsedGi(GraphicsItem* gi);
 
-    UsedItems m_usedItems;
-
     QString m_fileName;
-    Side boardSide = Top;
 
     bool m_editMode = false;
     int fileId = -1;

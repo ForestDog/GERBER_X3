@@ -4,9 +4,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -16,11 +16,9 @@
 #include "formsutil.h"
 #include "errordialog.h"
 
-#ifdef GERBER
-#include "gbrfile.h"
-#endif
-#include "gcode.h"
-#include "gi/erroritem.h"
+#include "gcode/gcode.h"
+
+#include "erroritem.h"
 #include "project.h"
 #include "qprogressdialog.h"
 #include "scene.h"
@@ -71,6 +69,56 @@ FormsUtil::~FormsUtil()
     thread.wait();
 }
 
+void FormsUtil::fileHandler(GCode::File* file)
+{
+    if (--fileCount == 0)
+        cancel();
+
+    if (file == nullptr) {
+        QMessageBox::information(this, tr("Warning"), tr("The tool doesn`t fit in the Working items!"));
+        return;
+    }
+
+    file->setFileName(m_fileName + "_" + file->name());
+    file->setSide(boardSide);
+    if (fileId > -1) {
+        exit(-123456);
+        //        App::project()->reload(fileId, file);
+        //        m_editMode = false;
+        //        fileId = -1;
+    } else {
+        App::project()->addFile(file);
+    }
+}
+
+void FormsUtil::timerEvent(QTimerEvent* event)
+{
+    if (event->timerId() == progressTimerId && progressDialog && m_tpc) {
+        const auto [max, val] = m_tpc->getProgress();
+        progressDialog->setMaximum(max);
+        progressDialog->setValue(val);
+
+        progressDialog->setLabelText(m_tpc->msg);
+    }
+    if (event->timerId() == flikerTimerId) {
+        App::scene()->update();
+    }
+}
+
+void FormsUtil::addUsedGi(GraphicsItem* gi)
+{
+    if (gi->file()) {
+        FileInterface const* file = gi->file();
+        if (file->type() == FileType::Gerber) {
+#ifdef GBR_
+            m_usedItems[{ file->id(), reinterpret_cast<const Gerber::File*>(file)->itemsType() }].push_back(gi->id());
+#endif
+        } else {
+            m_usedItems[{ file->id(), -1 }].push_back(gi->id());
+        }
+    }
+}
+
 void FormsUtil::cancel()
 {
     m_tpc->cancel();
@@ -106,53 +154,4 @@ void FormsUtil::stopProgress()
     progressTimerId = 0;
     progressDialog->reset();
     progressDialog->hide();
-}
-
-void FormsUtil::fileHandler(GCode::File* file)
-{
-    if (--fileCount == 0)
-        cancel();
-
-    if (file == nullptr) {
-        QMessageBox::information(this, tr("Warning"), tr("The tool doesn`t fit in the Working items!"));
-        return;
-    }
-
-    file->setFileName(m_fileName + "_" + file->name());
-    file->setSide(boardSide);
-    if (fileId > -1) {
-        App::project()->reload(fileId, file);
-        m_editMode = false;
-        fileId = -1;
-    } else {
-        App::project()->addFile(file);
-    }
-}
-
-void FormsUtil::timerEvent(QTimerEvent* event)
-{
-    if (event->timerId() == progressTimerId && progressDialog && m_tpc) {
-        const auto [max, val] = m_tpc->getProgress();
-        progressDialog->setMaximum(max);
-        progressDialog->setValue(val);
-
-        progressDialog->setLabelText(m_tpc->msg);
-    }
-    if (event->timerId() == flikerTimerId) {
-        App::scene()->update();
-    }
-}
-
-void FormsUtil::addUsedGi(GraphicsItem* gi)
-{
-    if (gi->file()) {
-        AbstractFile const* file = gi->file();
-        if (file->type() == FileType::Gerber) {
-#ifdef GERBER
-            m_usedItems[{ file->id(), reinterpret_cast<const Gerber::File*>(file)->itemsType() }].append(gi->id());
-#endif
-        } else {
-            m_usedItems[{ file->id(), -1 }].append(gi->id());
-        }
-    }
 }

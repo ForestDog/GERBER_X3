@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -12,11 +12,13 @@
 *                                                                              *
 *******************************************************************************/
 #pragma once
+#ifdef GBR_
 #include "extypes.h"
-#ifdef GERBER
 #include "gbrtypes.h"
 #endif
-#include "gcode.h"
+
+#include "gcode/gcode.h"
+
 #include <QHeaderView>
 #include <QWidget>
 
@@ -29,7 +31,7 @@ class AbstractAperture;
 }
 
 class DrillModel;
-class DrillPrGI;
+class AbstractDrillPrGI;
 class Header;
 class QCheckBox;
 
@@ -40,10 +42,9 @@ public:
     explicit DrillForm(QWidget* parent = nullptr);
     ~DrillForm() override;
 
-#ifdef GERBER
-    void setApertures(const Gerber::ApertureMap* value);
-#endif
+#ifdef GBR_
     void setExcellonTools(const Excellon::Tools& value);
+#endif
     void updateFiles();
     static bool canToShow();
 
@@ -63,8 +64,8 @@ private:
     void on_currentChanged(const QModelIndex& current, const QModelIndex& previous);
     void on_customContextMenuRequested(const QPoint& pos);
 
-    void updateToolsOnGi(int toolId);
-    void pickUpTool(int apertureId, double diameter, bool isSlot = false);
+    void updateToolsOnGi(int apToolId);
+    void pickUpTool(const double k = 0.05); // 5%
 
     //    inline void updateCreateButton();
     inline void setSelected(int id, bool fl);
@@ -74,12 +75,12 @@ private:
     Ui::DrillForm* ui;
 
     int m_type;
-#ifdef GERBER
+#ifdef GBR_
     Gerber::ApertureMap m_apertures;
-#endif
     Excellon::Tools m_tools;
-    QMap<int, QVector<QSharedPointer<DrillPrGI>>> m_giPeview;
-    AbstractFile* file = nullptr;
+#endif
+    DrillPreviewGiMap m_giPeview;
+    FileInterface* file = nullptr;
     QCheckBox* checkBox;
     Header* header;
     void clear();
@@ -112,7 +113,7 @@ protected:
 
 private:
     int flag = Qt::Unchecked;
-    mutable QVector<QRect> m_checkRect;
+    mutable mvector<QRect> m_checkRect;
     void setChecked(int index, bool ch);
     bool checked(int index) const;
     DrillModel* model() const;

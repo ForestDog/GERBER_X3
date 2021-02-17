@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -12,24 +12,28 @@
 *                                                                              *
 *******************************************************************************/
 #pragma once
+
+#include "mvector.h"
+
 #include <QDialog>
 
 class ErrorItem;
 class TableView;
 
-namespace Ui {
-class ErrorDialog;
-}
+class QVBoxLayout;
+class QDialogButtonBox;
 
 class ErrorDialog : public QDialog {
-    Q_OBJECT
+    //    Q_OBJECT
+    QDialogButtonBox* buttonBox;
+    QVBoxLayout* verticalLayout;
+    QWidget* lastWidget = nullptr;
+    TableView* table;
+
+    void setupUi(QDialog* ErrorDialog); // setupUi
+    void retranslateUi(QDialog* ErrorDialog); // retranslateUi
 
 public:
-    explicit ErrorDialog(const QVector<ErrorItem*>& items, QWidget* parent = nullptr);
+    explicit ErrorDialog(const mvector<ErrorItem*>& items, QWidget* parent = nullptr);
     ~ErrorDialog();
-
-private:
-    QWidget* lastWidget = nullptr;
-    Ui::ErrorDialog* ui;
-    TableView* table;
 };

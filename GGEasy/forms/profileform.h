@@ -2,9 +2,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -41,9 +41,16 @@ private:
     void rb_clicked();
     BridgeItem* brItem = nullptr;
 
+    enum Trimming {
+        Line = 1,
+        Corner = 2,
+    };
+    int m_trimming = 0;
+
 protected:
     // QWidget interface
-    void resizeEvent(QResizeEvent* event) override;
+    void
+    resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
     // FormsUtil interface
     void createFile() override;

@@ -4,9 +4,9 @@
 *                                                                              *
 * Author    :  Damir Bakiev                                                    *
 * Version   :  na                                                              *
-* Date      :  01 February 2020                                                *
+* Date      :  14 January 2021                                                 *
 * Website   :  na                                                              *
-* Copyright :  Damir Bakiev 2016-2020                                          *
+* Copyright :  Damir Bakiev 2016-2021                                          *
 *                                                                              *
 * License:                                                                     *
 * Use, modification & distribution is subject to Boost Software License Ver 1. *
@@ -82,7 +82,6 @@ PocketOffsetForm::PocketOffsetForm(QWidget* parent)
 PocketOffsetForm::~PocketOffsetForm()
 {
 
-
     MySettings settings;
     settings.beginGroup("PocketOffsetForm");
     settings.setValue(ui->sbxToolQty);
@@ -118,14 +117,14 @@ void PocketOffsetForm::createFile()
 
     Paths wPaths;
     Paths wRawPaths;
-    AbstractFile const* file = nullptr;
+    FileInterface const* file = nullptr;
     bool skip { true };
 
     for (auto* item : App::scene()->selectedItems()) {
         GraphicsItem* gi = dynamic_cast<GraphicsItem*>(item);
         switch (static_cast<GiType>(item->type())) {
-        case GiType::Gerber:
-        case GiType::AperturePath:
+        case GiType::DataSolid:
+        case GiType::DataPath:
             if (!file) {
                 file = gi->file();
                 boardSide = file->side();
@@ -135,16 +134,16 @@ void PocketOffsetForm::createFile()
                         return;
                 }
             }
-            if (static_cast<GiType>(item->type()) == GiType::Gerber)
+            if (static_cast<GiType>(item->type()) == GiType::DataSolid)
                 wPaths.append(gi->paths());
             else
                 wRawPaths.append(gi->paths());
             break;
-        case GiType::ShapeC:
-        case GiType::ShapeR:
-        case GiType::ShapeL:
-        case GiType::ShapeA:
-        case GiType::ShapeT:
+        case GiType::ShCircle:
+        case GiType::ShRectangle:
+        case GiType::ShPolyLine:
+        case GiType::ShCirArc:
+        case GiType::ShText:
             wRawPaths.append(gi->paths());
             break;
         case GiType::Drill:
@@ -156,15 +155,15 @@ void PocketOffsetForm::createFile()
         addUsedGi(gi);
     }
 
-    if (wRawPaths.isEmpty() && wPaths.isEmpty()) {
+    if (wRawPaths.empty() && wPaths.empty()) {
         QMessageBox::warning(this, tr("Warning"), tr("No selected items for working..."));
         return;
     }
 
     GCode::GCodeParams gcp;
     for (const Tool& t : tool) {
-        gcp.tools.append(t);
-        if (gcp.tools.size() == ui->sbxToolQty->value())
+        gcp.tools.push_back(t);
+        if (gcp.tools.size() == static_cast<size_t>(ui->sbxToolQty->value()))
             break;
     }
 
@@ -189,7 +188,7 @@ void PocketOffsetForm::createFile()
     m_tpc->setGcp(gcp);
     m_tpc->addPaths(wPaths);
     m_tpc->addRawPaths(wRawPaths);
-    fileCount = gcp.tools.size(); //    ui->sbxToolQty->value();
+    fileCount = static_cast<int>(gcp.tools.size());
     createToolpath();
 }
 
